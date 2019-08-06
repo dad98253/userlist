@@ -1,7 +1,7 @@
 # userlist
 
 
-This program reads a set of passwd, shadow, and goup files plus a special input
+This program reads a set of passwd, shadow, and group files plus a special input
 file that contains a mapping of the user's passwords and samba share names. The
 the files are parsed and a set of scripts are produced that can be used to duplicate
 the usernames, passwords, and share locations on a second computer (handy when
