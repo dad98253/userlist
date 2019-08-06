@@ -33,10 +33,12 @@
  *
  */
 
-#define _BSD_SOURCE
+//#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #define _XOPEN_SOURCE       /* See feature_test_macros(7) */
 #include <unistd.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 char *crypt(const char *key, const char *salt);
 
@@ -55,6 +57,14 @@ typedef struct TEACHERS {
 	char * password;
 	char * sharename;
 } TEACHERS;
+typedef struct STUDENTS {
+	char * username;
+	char * password;
+	char * sharename;
+	char * firstname;
+	char * lastname;
+	unsigned int grade;
+} STUDENTS;
 typedef struct GROUPS {
 	char * groupname;
 	char * groupid;
@@ -68,13 +78,17 @@ struct TEACHERS teachers[] = {
 };
 */
 struct TEACHERS *teachers;
+struct STUDENTS *students;
 struct GROUPS *groups = NULL;
 unsigned int numgroups = 0;
 int numteachers = 0;
+int numstudents = 0;
 
 int dumpteachers(FILE *fInputFile6);
 int loadteachers(FILE *fInputFile6);
+int loadstudents(FILE *fInputFile7);
 int cleanupteachers();
+int cleanupstudents();
 TEACHERS * getuser(char* username);
 GROUPS * getgroup(char* groupname, int searchon);
 unsigned int loadgroups(FILE *fInputFile4);
@@ -87,6 +101,9 @@ int main ()
 	FILE *fInputFile4;
 	FILE *fInputFile5;
 	FILE *fInputFile6;
+	FILE *fInputFile7;
+	FILE *fInputFile8;
+	FILE *fInputFile9;
 	int ntok1,ntok2;
 	int i,j;
 	int ilen;
@@ -103,10 +120,15 @@ int main ()
 	if ( (fInputFile4 = fopen("/mnt/DataDisk1/dad/ICAserverFiles/etc/group","r")) == NULL ) return(1);
 	if ( (fInputFile5 = fopen("addsmbusers.sh","w")) == NULL ) return(1);
 	if ( (fInputFile6 = fopen("teachers.txt","r")) == NULL ) return(1);
+	if ( (fInputFile7 = fopen("students.csv","r")) == NULL ) return(1);
+	if ( (fInputFile8 = fopen("addldapusers.sh","w")) == NULL ) return(1);
+	if ( (fInputFile9 = fopen("studentrusersummary.txt","w")) == NULL ) return(1);
 
 //	dumpteachers(fInputFile6);
 	teachers = malloc(sizeof(TEACHERS));
 	numteachers = loadteachers(fInputFile6);
+	students = malloc(sizeof(STUDENTS));
+	numstudents = loadstudents(fInputFile7);
 	// load group data
 	numgroups = loadgroups(fInputFile4);
 
@@ -176,11 +198,33 @@ int main ()
 			}
 		}
 	}
+/*
+ *
+samba-tool user create Valerie.Grissom VG1819 --given-name=Valerie --surname=Grissom --job-title="Teacher" --department="Teaching Staff" --company="Island Christian Academy"
+
+samba-tool group addmembers "ICA Teachers" Shannon.Dixon
+ *
+ * typedef struct STUDENTS {
+	char * username;
+	char * password;
+	char * sharename;
+	char * firstname;
+	char * lastname;
+	unsigned int grade;
+} STUDENTS;
+ */
+	for ( i=0;i<numstudents;i++) {
+		fprintf(fInputFile8,"samba-tool user create %s %s --given-name=%s --surname=%s --job-title=\"Student\" --department=\"Grade %u\" --company=\"Island Christian Academy\"\n",students[i].username,students[i].password,students[i].firstname,students[i].lastname,students[i].grade);
+		fprintf(fInputFile8,"samba-tool group addmembers \"ICA Students\" %s\n",students[i].username);
+
+		fprintf(fInputFile9,"given-name=%-20s surname=%-20s Grade %u \tuser-name=%s\n",students[i].firstname,students[i].lastname,students[i].grade,students[i].username);
+	}
 
 	printf(" that's all !!\n");
 //	printf("%s\n",crypt("abc","ab"));
 
 	cleanupteachers();
+	cleanupstudents();
 	return(0);
 }
 
@@ -250,6 +294,111 @@ int cleanupteachers() {
 		if (teachers[j].sharename != NULL )free(teachers[j].sharename);
 	}
 	free(teachers);
+	return (0);
+}
+
+/*
+ * typedef struct STUDENTS {
+	char * username;
+	char * password;
+	char * firstname;
+	char * lastname;
+	unsigned int grade;
+} STUDENTS;
+ */
+char* getfield(char* line, int num)
+{
+    char* tok;
+    for (tok = strtok(line, ",");
+            tok && *tok;
+            tok = strtok(NULL, ",\n"))
+    {
+        if (!--num)
+            return tok;
+    }
+    return NULL;
+}
+/*
+int main()
+{
+    FILE* stream = fopen("input", "r");
+
+    char line[1024];
+    while (fgets(line, 1024, stream))
+    {
+        char* tmp = strdup(line);
+        printf("Field 3 would be %s\n", getfield(tmp, 3));
+        // NOTE strtok clobbers tmp
+        free(tmp);
+    }
+} */
+int loadstudents(FILE *fInputFile7) {
+
+	char line[LINELEN]="";
+	char user[LINELEN]="";
+	char pass[LINELEN]="";
+	char share[LINELEN]="";
+	char firstname[LINELEN]="";
+	char lastname[LINELEN]="";
+	char *puser,*ppass,*pshare,*pfirstname,*plastname,*pfirstname2,*plastname2,*pline;
+	unsigned int grade;
+	int j=0;
+//	size_t numstudents = sizeof(students)/sizeof(STUDENTS);
+//	while ( fscanf(fInputFile7,"%s %s %u\n",lastname,firstname,&grade) == 3 ) {
+	while ( fgets(line, LINELEN, fInputFile7) ) {
+		if(strlen(line) < 3)break;
+		strcpy(lastname,line);
+		plastname2 = getfield(lastname, 1);
+		strcpy(firstname,line);
+		pfirstname2 = getfield(firstname, 2);
+		pline = getfield(line, 3);
+//		scanf(pline,"%u",&grade);
+		grade = (unsigned int)strtol(pline, NULL, 10);
+//		lastname[strlen(lastname)-1] = '\000';
+//		firstname[strlen(firstname)-1] = '\000';
+		strcpy(user,pfirstname2);
+		strcat(user,plastname2);
+		user[strlen(pfirstname2)+1] = '\000';
+		puser = user;
+		for ( ; *puser; ++puser) *puser = tolower(*puser);
+		strcpy(pass,"student");
+//		pass[strlen(pass)-1] = '\000';
+		strcpy(share,user);
+//		share[strlen(share)-1] = '\000';
+		pfirstname = (char*)malloc(strlen(pfirstname2)+1);
+		plastname = (char*)malloc(strlen(plastname2)+1);
+		puser = (char*)malloc(strlen(user)+1);
+		ppass = (char*)malloc(strlen(pass)+1);
+		pshare = (char*)malloc(strlen(share)+1);
+		strcpy(pfirstname,pfirstname2);
+		strcpy(plastname,plastname2);
+		strcpy(puser,user);
+		strcpy(ppass,pass);
+		strcpy(pshare,share);
+//printf("user=[%s],pass=[%s],share=[%s]\n",puser,ppass,pshare);
+		students = realloc(students,sizeof(STUDENTS)*(j+1));
+		students[j].username=puser;
+		students[j].password=ppass;
+		students[j].firstname=pfirstname;
+		students[j].lastname=plastname;
+		students[j].sharename=pshare;
+		students[j].grade=grade;
+		j++;
+	}
+
+	return (j);
+}
+int cleanupstudents() {
+	int j;
+	size_t numstudents = sizeof(students)/sizeof(STUDENTS);
+	for (j=0;j<numstudents;j++) {
+		if (students[j].username != NULL )free(students[j].username);
+		if (students[j].password != NULL )free(students[j].password);
+		if (students[j].sharename != NULL )free(students[j].sharename);
+		if (students[j].firstname != NULL )free(students[j].firstname);
+		if (students[j].lastname != NULL )free(students[j].lastname);
+	}
+	free(students);
 	return (0);
 }
 
