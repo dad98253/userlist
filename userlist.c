@@ -306,12 +306,57 @@ int cleanupteachers() {
 	unsigned int grade;
 } STUDENTS;
  */
+char *paxtok (char *str, char *seps) {
+    static char *tpos, *tkn, *pos = NULL;
+    static char savech;
+
+    // Specific actions for first and subsequent calls.
+
+    if (str != NULL) {
+        // First call, set pointer.
+
+        pos = str;
+        savech = 'x';
+    } else {
+        // Subsequent calls, check we've done first.
+
+        if (pos == NULL)
+            return NULL;
+
+        // Then put character back and advance.
+
+        while (*pos != '\0')
+            pos++;
+        *pos++ = savech;
+    }
+
+    // Detect previous end of string.
+
+    if (savech == '\0')
+        return NULL;
+
+    // Now we have pos pointing to first character.
+    // Find first separator or nul.
+
+    tpos = pos;
+    while (*tpos != '\0') {
+        tkn = strchr (seps, *tpos);
+        if (tkn != NULL)
+            break;
+        tpos++;
+    }
+
+    savech = *tpos;
+    *tpos = '\0';
+
+    return pos;
+}
 char* getfield(char* line, int num)
 {
     char* tok;
-    for (tok = strtok(line, ",");
-            tok && *tok;
-            tok = strtok(NULL, ",\n"))
+    for (tok = paxtok(line, ",");
+            tok ;	//             tok && *tok;
+            tok = paxtok(NULL, ",\n"))
     {
         if (!--num)
             return tok;
@@ -340,20 +385,31 @@ int loadstudents(FILE *fInputFile7) {
 	char share[LINELEN]="";
 	char firstname[LINELEN]="";
 	char lastname[LINELEN]="";
+	char gradeline[LINELEN]="";
 	char *puser,*ppass,*pshare,*pfirstname,*plastname,*pfirstname2,*plastname2,*pline;
 	unsigned int grade;
+	unsigned int newstudent;
 	int j=0;
+	int firstline = 0;
 //	size_t numstudents = sizeof(students)/sizeof(STUDENTS);
 //	while ( fscanf(fInputFile7,"%s %s %u\n",lastname,firstname,&grade) == 3 ) {
 	while ( fgets(line, LINELEN, fInputFile7) ) {
-		if(strlen(line) < 3)break;
+		firstline++;
+		if ( firstline == 1 ) continue;	// skip first (title) line
+		if(strlen(line) < 6)break;
 		strcpy(lastname,line);
 		plastname2 = getfield(lastname, 1);
 		strcpy(firstname,line);
 		pfirstname2 = getfield(firstname, 2);
-		pline = getfield(line, 3);
+		strcpy(gradeline,line);
+		pline = getfield(gradeline, 4);
 //		scanf(pline,"%u",&grade);
 		grade = (unsigned int)strtol(pline, NULL, 10);
+		if (grade<7) continue;
+		pline = getfield(line, 6);
+//		scanf(pline,"%u",&newstudent);
+		newstudent = (unsigned int)strtol(pline, NULL, 10);
+		if (!newstudent) continue;
 //		lastname[strlen(lastname)-1] = '\000';
 //		firstname[strlen(firstname)-1] = '\000';
 		strcpy(user,pfirstname2);
