@@ -110,7 +110,7 @@ int main ()
 	char *tok, *end;
 	struct TEACHERS *user;
 	char *newhome = "/var/lib/opsi/home";
-
+	char *StudentsOU = "'OU=Students,OU=ICA,OU=SWAG Users'";
 
 
 
@@ -214,7 +214,7 @@ samba-tool group addmembers "ICA Teachers" Shannon.Dixon
 } STUDENTS;
  */
 	for ( i=0;i<numstudents;i++) {
-		fprintf(fInputFile8,"samba-tool user create %s %s --given-name=%s --surname=%s --job-title=\"Student\" --department=\"Grade %u\" --company=\"Island Christian Academy\"\n",students[i].username,students[i].password,students[i].firstname,students[i].lastname,students[i].grade);
+		fprintf(fInputFile8,"samba-tool user add %s %s --given-name=%s --surname=%s --job-title=\"Student\" --department=\"Grade %u\" --company=\"Island Christian Academy\" --userou=%s\n",students[i].username,students[i].password,students[i].firstname,students[i].lastname,students[i].grade,StudentsOU);
 		fprintf(fInputFile8,"samba-tool group addmembers \"ICA Students\" %s\n",students[i].username);
 
 		fprintf(fInputFile9,"given-name=%-20s surname=%-20s Grade %u \tuser-name=%s\n",students[i].firstname,students[i].lastname,students[i].grade,students[i].username);
